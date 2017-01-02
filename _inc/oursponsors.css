@@ -1,0 +1,34 @@
+.oursponsors_sponsor_cancel {
+	float: right;
+}
+
+.oursponsors_table {
+	margin: 15px;
+	width: calc(100% - 15px);
+}
+
+.oursponsors_row {
+	cursor: pointer;
+}
+
+.oursponsors_image_preview_wrapper {
+	float: left;
+}
+
+.oursponsors_image_preview_wrapper_wide {
+	width: 70%;
+}
+
+.oursponsors_image_preview_wrapper_square {
+	width: 30%;
+}
+
+.oursponsors_image_preview_wide,
+.oursponsors_image_preview_square{
+	max-height: 100%;
+	max-width: 100%;
+}
+
+.clearfix {
+	clear: both;
+}
