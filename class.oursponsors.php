@@ -8,7 +8,11 @@ class OurSponsors {
 	public static function init() {
 		self::init_table_names();
 		if ( ! self::$initiated ) {
-			self::init_hooks();
+			if(is_admin()) {
+				self::init_admin_hooks();
+			} else {
+				self::init_user_hooks();
+			}
 		}
 	}
 
@@ -21,7 +25,7 @@ class OurSponsors {
 	/**
 	 * Initializes WordPress hooks
 	 */
-	private static function init_hooks() {
+	private static function init_admin_hooks() {
 		self::$initiated = true;
 
 		wp_enqueue_style( 'our-sponsors-styles', '/wp-content/plugins/oursponsors/_inc/oursponsors.css' );
@@ -29,12 +33,22 @@ class OurSponsors {
 		add_action( 'admin_menu', ['OurSponsors', 'create_plugin_menu'] );
 		add_action( 'admin_enqueue_scripts', ['OurSponsors', 'enqueue_ajax_scripts'] );
 		add_action( 'wp_ajax_manage_sponsors', ['OurSponsors', 'manage_sponsors_ajax_callback'] );
-
-		add_shortcode( 'oursponsors', ['OurSponsors', 'get_shortcode_content'] );
 	}
 
-	public static function get_shortcode_content() {
+	private static function init_user_hooks() {
+		add_shortcode( 'oursponsors', ['OurSponsors', 'get_shortcode_content'] );
+
+		wp_enqueue_style('our-sponsors-user-styles', '/wp-content/plugins/oursponsors/_inc/oursponsors-user.css');
+	}
+
+	public static function get_shortcode_content( $atts ) {
 		global $wpdb;
+
+		$args = shortcode_atts( array(
+	        'year' => '',
+	        'all' => false
+	    ), $atts );
+
 		$sponsors_table_name = self::$sponsors_table_name;
 		$sponsor_levels_table_name = self::$sponsor_levels_table_name;
 
@@ -47,25 +61,28 @@ class OurSponsors {
 			if(!array_key_exists($s['sponsor_level'], $sponsors)) {
 				$sponsors[$s['sponsor_level']] = [];
 			}
-			$sponsors[$s['sponsor_level']][] = $s;
+			if ( $args['all'] || strpos($s['years'], $args['year']) !== false ) {
+				$sponsors[$s['sponsor_level']][] = $s;
+			}
 		}
 
 		foreach($levels as $v) {
-			echo ( '<div class="oursponsors-level row">');
+			if ( !array_key_exists($v['id'], $sponsors)
+				|| count( $sponsors[$v['id']] ) === 0
+			) {
+				continue;
+			}
 			echo ( '<h2 class="oursponsors-level-name">' . $v['name'] . '</h2>' );
 			echo ( '<p class="oursponsors-level-text">' . $v['text'] . '</p>' );
+			echo ( '<div class="oursponsors-level oursponsors-row row">');
 			foreach($sponsors[$v['id']] as $s) {
-				echo ( '<div class="oursponsors-sponsor col-md-' . $v['size'] . ' oursponsors-cols-' . $v['size'] . '">');
-				$square_url = wp_get_attachment_url($s['image_square_id']);
-				$wide_url = wp_get_attachment_url($s['image_wide_id']);
+				echo ( '<div class="oursponsors-sponsor col-md-' . $v['size'] . ' oursponsors-col-' . $v['size'] . '">');
+				$image_url = wp_get_attachment_url($s['image_id']);
 				echo ( '<h3 class="oursponsors-sponsor-name">' );
 				echo ( self::oursponsors_linkwrap( $s['name'], $s['url'] ) );
 				echo ( '</h3>' );
-				if ($s['image_wide_id']) {
-					echo ( self::oursponsors_linkwrap( '<img class="oursponsors-sponsor-img-wide" src="' . $wide_url . '" alt="Logo for ' . $s['name'] . '">' , $s['url'] ) );
-				}
-				if ($s['image_square_id']) {
-					echo ( self::oursponsors_linkwrap( '<img class="oursponsors-sponsor-img-square" src="' . $square_url . '" alt="Logo for ' . $s['name'] . '">' , $s['url'] ) );
+				if ($s['image_id']) {
+					echo ( self::oursponsors_linkwrap( '<img class="oursponsors-sponsor-img" src="' . $image_url . '" alt="Logo for ' . $s['name'] . '">', $s['url'], 'oursponsors-sponsor-img-link' ) );
 				}
 				if ($s['text']) {
 					echo ( '<div class="oursponsors-sponsor-text">' . $s['text'] . '</div>' );
@@ -76,11 +93,11 @@ class OurSponsors {
 		}
 	}
 
-	private static function oursponsors_linkwrap($str, $link) {
+	private static function oursponsors_linkwrap($str, $link, $class="") {
 		if (!$link) {
 			return $str;
 		}
-		return "<a href='$link'>$str</a>";
+		return "<a href='$link' class='$class'>$str</a>";
 	}
 
 	public static function plugin_activation() {
@@ -108,8 +125,7 @@ class OurSponsors {
 			name varchar(255) NOT NULL,
 			text text NOT NULL,
 			url varchar(255) DEFAULT '' NOT NULL,
-			image_wide_id mediumint(9) DEFAULT 0 NOT NULL,
-			image_square_id mediumint(9) DEFAULT 0 NOT NULL,
+			image_id mediumint(9) DEFAULT 0 NOT NULL,
 			sponsor_level mediumint(9) DEFAULT 0 NOT NULL,
 			PRIMARY KEY  (id)
 		) $charset_collate;";
@@ -144,8 +160,7 @@ class OurSponsors {
 					'name' => 'Example Gold Sponsor',
 					'text' => 'This is an example "gold-level" sponsor.',
 					'url' => 'http://purecode.com',
-					'image_wide_id' => 0,
-					'image_square_id' => 0,
+					'image_id' => 0,
 					'sponsor_level' => 1
 				],
 				[
@@ -153,8 +168,15 @@ class OurSponsors {
 					'name' => 'Example Silver Sponsor',
 					'text' => 'This is an example "silver-level" sponsor.',
 					'url' => 'http://purecode.com',
-					'image_wide_id' => 0,
-					'image_square_id' => 0,
+					'image_id' => 0,
+					'sponsor_level' => 2
+				],
+				[
+					'years' => date( 'Y' ),
+					'name' => 'Example Silver Sponsor',
+					'text' => 'This is another "silver-level" sponsor.',
+					'url' => 'http://purecode.com',
+					'image_id' => 0,
 					'sponsor_level' => 2
 				]
 			];
@@ -167,8 +189,7 @@ class OurSponsors {
 						'name' => '%s',
 						'text' => '%s',
 						'url' => '%s',
-						'image_wide_id' => '%d',
-						'image_square_id' => '%d',
+						'image_id' => '%d',
 						'sponsor_level' => '%d'
 					]
 				);
@@ -246,22 +267,12 @@ class OurSponsors {
 							<label><span>URL: </span><input type="text" class="regular-text oursponsors_sponsor_url"></label>
 						</p>
 						<p>
-							<div class='oursponsors_image_preview_wrapper oursponsors_image_preview_wrapper_wide'>
-								<h4>Wide Image (16:9)</h4>
-								<img class='oursponsors_image_preview_wide' src='' >
-								<input class="oursponsors_open_media_selector_wide" type="button" class="button" value="Upload/Select Image" />
-								<input type='hidden' class='oursponsors_sponsor_image_wide_id' value=''>
+							<div class='oursponsors_image_preview_wrapper oursponsors_image_preview_wrapper'>
+								<h4>Image (670 x 180)</h4>
+								<img class='oursponsors_image_preview' src='' >
+								<input class="oursponsors_open_media_selector" type="button" class="button" value="Upload/Select Image" />
+								<input type='hidden' class='oursponsors_sponsor_image_id' value=''>
 							</div>
-
-
-							<div class='oursponsors_image_preview_wrapper oursponsors_image_preview_wrapper_square'>
-								<h4>Square Image (1:1)</h4>
-								<img class='oursponsors_image_preview_square' src='' >
-								<input class="oursponsors_open_media_selector_square" type="button" class="button" value="Upload/Select Image" />
-								<input type='hidden' class='oursponsors_sponsor_image_square_id' value=''>
-							</div>
-
-							<div class="clearfix"></div>
 						</p>
 						<p>
 							<label><span>Sponsor Level: </span><select class="oursponsors_sponsor_level"></select></label>
@@ -272,12 +283,15 @@ class OurSponsors {
 						</p>
 						<p>
 							<button class="oursponsors_sponsor_cancel">Cancel</button>
+							<button class="oursponsors_sponsor_delete">Delete</button>
 							<button class="oursponsors_sponsor_save">Save</button>
+
 						</p>
 					</td>
 				</tr>
 			</tfoot>
 		</table>
+		<button class="oursponsors_sponsor_add">Add Sponsor</button>
 		<h3>Sponsor Levels</h3>
 		<table class="wp-list-table oursponsors_table widefat fixed striped">
 			<tbody id="oursponsors_sponsor_levels">
@@ -314,13 +328,14 @@ class OurSponsors {
 						</p>
 						<p>
 							<button class="oursponsors_sponsor_level_cancel">Cancel</button>
+							<button class="oursponsors_sponsor_level_delete">Delete</button>
 							<button class="oursponsors_sponsor_level_save">Save</button>
 						</p>
 					</td>
 				</tr>
 			</tfoot>
 		</table>
-
+		<button class="oursponsors_sponsor_level_add">Add Sponsor Level</button>
 		</div>
 		<?php
 	}
@@ -350,8 +365,7 @@ class OurSponsors {
 
 		$sponsors = $wpdb->get_results("SELECT * FROM $sponsors_table_name", ARRAY_A);
 		foreach($sponsors as $k => $s) {
-			$sponsors[$k]['image_wide_url'] = wp_get_attachment_url($s['image_wide_id']);
-			$sponsors[$k]['image_square_url'] = wp_get_attachment_url($s['image_square_id']);
+			$sponsors[$k]['image_url'] = wp_get_attachment_url($s['image_id']);
 		}
 
 		echo (json_encode([
@@ -376,28 +390,111 @@ class OurSponsors {
 				break;
 			}
 			case 'update_sponsor': {
-				$result = $wpdb->update(
-					$sponsors_table_name,
-					[
-						'name' => stripslashes($payload['name']),
-						'text' => stripslashes($payload['text']),
-						'url' => stripslashes($payload['url']),
-						'image_wide_id' => intval($payload['image_wide_id']),
-						'image_square_id' => intval($payload['image_square_id']),
-						'sponsor_level' => intval($payload['sponsor_level']),
-						'years' => stripslashes($payload['years'])
-					],
+				if ($payload['id'] === 'x') {
+					$result = $wpdb->insert( $sponsors_table_name,
+						[
+							'years' => stripslashes($payload['years']),
+							'name' => stripslashes($payload['name']),
+							'text' => stripslashes($payload['text']),
+							'url' => stripslashes($payload['url']),
+							'image_id' => intval($payload['image_id']),
+							'sponsor_level' => intval($payload['sponsor_level'])
+						],
+						[
+							'years' => '%s',
+							'name' => '%s',
+							'text' => '%s',
+							'url' => '%s',
+							'image_id' => '%d',
+							'sponsor_level' => '%d'
+						]
+					);
+				} else {
+					$result = $wpdb->update(
+						$sponsors_table_name,
+						[
+							'name' => stripslashes($payload['name']),
+							'text' => stripslashes($payload['text']),
+							'url' => stripslashes($payload['url']),
+							'image_id' => intval($payload['image_id']),
+							'sponsor_level' => intval($payload['sponsor_level']),
+							'years' => stripslashes($payload['years'])
+						],
+						[
+							'id' => intval($payload['id'])
+						],
+						[
+							'%s', //name
+							'%s', //text
+							'%s', //url
+							'%d', //image
+							'%d', //sponsor level
+							'%s' //years
+						],
+						[
+							'%d'
+						]
+					);
+				}
+				if ($result === false) {
+					// err
+					echo( '"err"' );
+				} elseif ($result === 0) {
+					echo( '"none"' );
+				} else {
+					self::echo_all_data();
+				}
+				break;
+			}
+			case 'update_sponsor_level': {
+				if ($payload['id'] === 'x') {
+					$wpdb->insert( $sponsor_levels_table_name,
+						[
+							'name' => stripslashes($payload['name']),
+							'text' => stripslashes($payload['text']),
+							'size' => stripslashes($payload['size']),
+						],
+						[
+							'name' => '%s',
+							'text' => '%s',
+							'size' => '%d'
+						]
+					);
+				} else {
+					$result = $wpdb->update(
+						$sponsor_levels_table_name,
+						[
+							'name' => stripslashes($payload['name']),
+							'text' => stripslashes($payload['text']),
+							'size' => intval($payload['size']),
+						],
+						[
+							'id' => intval($payload['id'])
+						],
+						[
+							'%s', //name
+							'%s', //text
+							'%d', //size !!
+						],
+						[
+							'%d'
+						]
+					);
+				}
+				if ($result === false) {
+					// err
+					echo( '"err"' );
+				} elseif ($result === 0) {
+					echo( '"none"' );
+				} else {
+					self::echo_all_data();
+				}
+				break;
+			}
+			case 'delete_sponsor' :{
+				$result = $wpdb->delete($sponsors_table_name,
 					[
 						'id' => intval($payload['id'])
-					],
-					[
-						'%s', //name
-						'%s', //text
-						'%s', //url
-						'%d', //image wide
-						'%d', //image square
-						'%d', //sponsor level
-						'%s' //years
 					],
 					[
 						'%d'
@@ -413,21 +510,10 @@ class OurSponsors {
 				}
 				break;
 			}
-			case 'update_sponsor_level': {
-				$result = $wpdb->update(
-					$sponsor_levels_table_name,
-					[
-						'name' => stripslashes($payload['name']),
-						'text' => stripslashes($payload['text']),
-						'size' => intval($payload['size']),
-					],
+			case 'delete_level' :{
+				$result = $wpdb->delete($sponsor_levels_table_name,
 					[
 						'id' => intval($payload['id'])
-					],
-					[
-						'%s', //name
-						'%s', //text
-						'%d', //size !!
 					],
 					[
 						'%d'

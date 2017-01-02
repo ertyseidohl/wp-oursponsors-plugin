@@ -6,17 +6,58 @@ jQuery(document).ready(function($) {
 
 	var oursponsors_last_res = null;
 
-	var default_image_wide_url = ajax_object.plugin_url + '/_inc/purecode_logo_wide.png';
-	var default_image_square_url = ajax_object.plugin_url + '/_inc/purecode_logo_square.png';
+	var default_image_url = ajax_object.plugin_url + '/_inc/purecode_logo_wide.png';
 
 	var oursponsors_is_editing = false;
 
-	function oursponsors_create_media_selector(sponsor_id, image_type) {
+	$('.oursponsors_sponsor_add').click(oursponsors_add_sponsor);
+	$('.oursponsors_sponsor_level_add').click(oursponsors_add_sponsor_level);
+
+	function oursponsors_add_sponsor() {
+		$new_row = jQuery('#oursponsors_sponsors_row_template').clone();
+		$new_row.removeAttr('id');
+		$new_row.removeAttr('style');
+		jQuery('#oursponsors_sponsors').append($new_row);
+		oursponsors_render_edit_sponsor_row(
+			{
+				id: 'x',
+				name: '',
+				text: '',
+				url: '',
+				image_id: 0,
+				image_url: default_image_url,
+				sponsor_level: 0,
+				years: new Date().getFullYear()
+			},
+			oursponsors_last_res.levels,
+			jQuery('#oursponsors_sponsors_edit_template'),
+			$new_row
+		);
+	}
+
+	function oursponsors_add_sponsor_level() {
+		$new_row = jQuery('#oursponsors_sponsor_levels_row_template').clone();
+		$new_row.removeAttr('id');
+		$new_row.removeAttr('style');
+		jQuery('#oursponsors_sponsor_levels').append($new_row);
+		oursponsors_render_edit_level_row(
+			{
+				id: 'x',
+				name: '',
+				text: '',
+				size: 2,
+			},
+			jQuery('#oursponsors_sponsor_levels_edit_template'),
+			$new_row
+		);
+	}
+
+	function oursponsors_create_media_selector(sponsor_id) {
 		return new THB_MediaSelector( {
 			select: function( selected_images ) {
-				jQuery('.oursponsors_image_preview_' + sponsor_id + '_' + image_type)
+				jQuery('.oursponsors_image_preview_' + sponsor_id)
 					.attr('src', selected_images.url);
-				jQuery('.oursponsors_sponsor_image_' + image_type + '_id_' + sponsor_id)
+				jQuery('.oursponsors_sponsor_image_id_' + sponsor_id)
 					.val(selected_images.id);
 			},
 			type: 'image'
@@ -138,26 +179,16 @@ jQuery(document).ready(function($) {
 		$row_clone.find('.oursponsors_sponsor_text').val(s.text);
 		$row_clone.find('.oursponsors_sponsor_url').val(s.url);
 
-		var wide_media_selector = oursponsors_create_media_selector(s.id, 'wide');
-		$row_clone.find('.oursponsors_image_preview_wide')
-			.addClass('oursponsors_image_preview_' + s.id + '_wide')
-			.attr('src', parseInt(s.image_wide_id, 10) ? s.image_wide_url : default_image_wide_url);
-		$row_clone.find('.oursponsors_sponsor_image_wide_id')
-			.addClass('oursponsors_sponsor_image_wide_id_' + s.id)
-			.val(s.image_wide_id);
-		$row_clone.find('.oursponsors_open_media_selector_wide').click(function() {
-			wide_media_selector.open([s.image_wide_id]);
-		});
-
-		var square_media_selector = oursponsors_create_media_selector(s.id, 'square');
-		$row_clone.find('.oursponsors_image_preview_square')
-			.addClass('oursponsors_image_preview_' + s.id + '_square')
-			.attr('src', parseInt(s.image_square_id, 10) ? s.image_square_url : default_image_square_url);
-		$row_clone.find('.oursponsors_sponsor_image_square_id')
-			.addClass('oursponsors_sponsor_image_square_id_' + s.id)
-			.val(s.image_square_id);
-		$row_clone.find('.oursponsors_open_media_selector_square').click(function() {
-			square_media_selector.open([s.image_square_id]);
+		var media_selector = oursponsors_create_media_selector(s.id);
+		console.log(media_selector);
+		$row_clone.find('.oursponsors_image_preview')
+			.addClass('oursponsors_image_preview_' + s.id)
+			.attr('src', parseInt(s.image_id, 10) ? s.image_url : default_image_url);
+		$row_clone.find('.oursponsors_sponsor_image_id')
+			.addClass('oursponsors_sponsor_image_id_' + s.id)
+			.val(s.image_id);
+		$row_clone.find('.oursponsors_open_media_selector').click(function() {
+			media_selector.open([s.image_id]);
 		});
 
 		var $levels = $row_clone.find('.oursponsors_sponsor_level');
@@ -167,8 +198,13 @@ jQuery(document).ready(function($) {
 		}
 		$row_clone.find('.oursponsors_sponsor_years').val(s.years);
 		$edit_target.replaceWith($row_clone);
+
 		$save_button = $row_clone.find('.oursponsors_sponsor_save');
 		$save_button.click(oursponsors_handle_save_sponsor);
+
+		$delete_button = $row_clone.find('.oursponsors_sponsor_delete');
+		$delete_button.click(oursponsors_handle_delete_sponsor);
+
 		$cancel_button = $row_clone.find('.oursponsors_sponsor_cancel');
 		$cancel_button.click(function() {
 			oursponsors_handle_response("\"none\"");
@@ -182,8 +218,7 @@ jQuery(document).ready(function($) {
 			name: $row.find('.oursponsors_sponsor_name').val(),
 			text: $row.find('.oursponsors_sponsor_text').val(),
 			url: $row.find('.oursponsors_sponsor_url').val(),
-			image_wide_id: $row.find('.oursponsors_sponsor_image_wide_id').val(),
-			image_square_id: $row.find('.oursponsors_sponsor_image_square_id').val(),
+			image_id: $row.find('.oursponsors_sponsor_image_id').val(),
 			sponsor_level: $row.find('.oursponsors_sponsor_level').val(),
 			years: $row.find('.oursponsors_sponsor_years').val()
 		}).then(
@@ -219,8 +254,14 @@ jQuery(document).ready(function($) {
 		$row_clone.find('.oursponsors_sponsor_level_text').val(v.text);
 		$row_clone.find('.oursponsors_sponsor_level_size').val(v.size);
 		$edit_target.replaceWith($row_clone);
+
 		$save_button = $row_clone.find('.oursponsors_sponsor_level_save');
 		$save_button.click(oursponsors_handle_save_level);
+
+		$delete_button = $row_clone.find('.oursponsors_sponsor_level_delete');
+		$delete_button.click(oursponsors_handle_delete_level);
+
+
 		$cancel_button = $row_clone.find('.oursponsors_sponsor_level_cancel');
 		$cancel_button.click(function() {
 			oursponsors_handle_response("\"none\"");
@@ -238,5 +279,33 @@ jQuery(document).ready(function($) {
 			oursponsors_handle_response,
 			oursponsors_handle_err
 		);
+	}
+
+	function oursponsors_handle_delete_sponsor(evt) {
+		id = jQuery(evt.target).parents('tr').data('sponsor-id');
+		if (!id || id === 'x') {
+			oursponsors_handle_response('\"none\"');
+		} else {
+			oursponsors_post('delete_sponsor', {
+				id: id
+			}).then(
+				oursponsors_handle_response,
+				oursponsors_handle_err
+			);
+		}
+	}
+
+	function oursponsors_handle_delete_level(evt) {
+		id = jQuery(evt.target).parents('tr').data('level-id');
+		if (!id || id === 'x') {
+			oursponsors_handle_response('\"none\"');
+		} else {
+			oursponsors_post('delete_level', {
+				id: id
+			}).then(
+				oursponsors_handle_response,
+				oursponsors_handle_err
+			);
+		}
 	}
 });

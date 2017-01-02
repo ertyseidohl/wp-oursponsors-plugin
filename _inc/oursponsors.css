@@ -1,5 +1,16 @@
-.oursponsors_sponsor_cancel {
+.oursponsors_sponsor_cancel,
+.oursponsors_sponsor_delete {
 	float: right;
+}
+
+.oursponsors_sponsor_level_cancel,
+.oursponsors_sponsor_level_delete {
+	float: right;
+}
+
+.oursponsors_sponsor_delete,
+.oursponsors_sponsor_level_delete {
+	margin-right: 2em;
 }
 
 .oursponsors_table {
@@ -11,21 +22,8 @@
 	cursor: pointer;
 }
 
-.oursponsors_image_preview_wrapper {
-	float: left;
-}
-
-.oursponsors_image_preview_wrapper_wide {
-	width: 70%;
-}
-
-.oursponsors_image_preview_wrapper_square {
-	width: 30%;
-}
-
-.oursponsors_image_preview_wide,
-.oursponsors_image_preview_square{
-	max-height: 100%;
+.oursponsors_image_preview {
+	max-height: 180px;
 	max-width: 100%;
 }
 
