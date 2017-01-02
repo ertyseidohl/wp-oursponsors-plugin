@@ -30,13 +30,13 @@ class OurSponsors {
 
 		wp_enqueue_style( 'our-sponsors-styles', '/wp-content/plugins/oursponsors/_inc/oursponsors.css' );
 
-		add_action( 'admin_menu', ['OurSponsors', 'create_plugin_menu'] );
-		add_action( 'admin_enqueue_scripts', ['OurSponsors', 'enqueue_ajax_scripts'] );
-		add_action( 'wp_ajax_manage_sponsors', ['OurSponsors', 'manage_sponsors_ajax_callback'] );
+		add_action( 'admin_menu', array('OurSponsors', 'create_plugin_menu') );
+		add_action( 'admin_enqueue_scripts', array('OurSponsors', 'enqueue_ajax_scripts') );
+		add_action( 'wp_ajax_manage_sponsors', array('OurSponsors', 'manage_sponsors_ajax_callback') );
 	}
 
 	private static function init_user_hooks() {
-		add_shortcode( 'oursponsors', ['OurSponsors', 'get_shortcode_content'] );
+		add_shortcode( 'oursponsors', array('OurSponsors', 'get_shortcode_content') );
 
 		wp_enqueue_style('our-sponsors-user-styles', '/wp-content/plugins/oursponsors/_inc/oursponsors-user.css');
 	}
@@ -55,11 +55,11 @@ class OurSponsors {
 		$sponsors_raw = $wpdb->get_results("SELECT * FROM $sponsors_table_name ORDER BY sponsor_level, name", ARRAY_A);
 		$levels = $wpdb->get_results("SELECT * FROM $sponsor_levels_table_name ORDER BY size DESC", ARRAY_A);
 
-		$sponsors = [];
+		$sponsors = array();
 
 		foreach($sponsors_raw as $s) {
 			if(!array_key_exists($s['sponsor_level'], $sponsors)) {
-				$sponsors[$s['sponsor_level']] = [];
+				$sponsors[$s['sponsor_level']] = array();
 			}
 			if ( $args['all'] || strpos($s['years'], $args['year']) !== false ) {
 				$sponsors[$s['sponsor_level']][] = $s;
@@ -154,77 +154,77 @@ class OurSponsors {
 		$levels_count = $wpdb->get_var( "SELECT COUNT(*) FROM $sponsor_levels_table_name" );
 
 		if ( !$sponsor_count ) {
-			$default_sponsors = [
-				[
+			$default_sponsors = array(
+				array(
 					'years' => date( 'Y' ),
 					'name' => 'Example Gold Sponsor',
 					'text' => 'This is an example "gold-level" sponsor.',
 					'url' => 'http://purecode.com',
 					'image_id' => 0,
 					'sponsor_level' => 1
-				],
-				[
+				),
+				array(
 					'years' => date( 'Y' ),
 					'name' => 'Example Silver Sponsor',
 					'text' => 'This is an example "silver-level" sponsor.',
 					'url' => 'http://purecode.com',
 					'image_id' => 0,
 					'sponsor_level' => 2
-				],
-				[
+				),
+				array(
 					'years' => date( 'Y' ),
 					'name' => 'Example Silver Sponsor',
 					'text' => 'This is another "silver-level" sponsor.',
 					'url' => 'http://purecode.com',
 					'image_id' => 0,
 					'sponsor_level' => 2
-				]
-			];
+				)
+			);
 
 			foreach( $default_sponsors as $s ) {
 				$wpdb->insert( self::$sponsors_table_name,
 					$s,
-					[
+					array(
 						'years' => '%s',
 						'name' => '%s',
 						'text' => '%s',
 						'url' => '%s',
 						'image_id' => '%d',
 						'sponsor_level' => '%d'
-					]
+					)
 				);
 			}
 		}
 
 		if (!$levels_count) {
-			$default_sponsors_levels = [
-				[
+			$default_sponsors_levels = array(
+				array(
 					'name' => 'Gold',
 					'text' => 'Our most valued sponsors',
 					'size' => 6
-				],
-				[
+				),
+				array(
 					'name' => 'Silver',
 					'text' => 'Our second most valued sponsors',
 					'size' => 4
-				]
-			];
+				)
+			);
 
 			foreach( $default_sponsors_levels as $s ) {
 				$wpdb->insert( self::$sponsor_levels_table_name,
 					$s,
-					[
+					array(
 						'name' => '%s',
 						'text' => '%s',
 						'size' => '%d'
-					]
+					)
 				);
 			}
 		}
 	}
 
 	public static function create_plugin_menu() {
-		add_menu_page( 'OurSponsors', 'OurSponsors', 'manage_options', 'our-sponsors', ['OurSponsors', 'manage_sponsors']);
+		add_menu_page( 'OurSponsors', 'OurSponsors', 'manage_options', 'our-sponsors', array('OurSponsors', 'manage_sponsors'));
 	}
 
 	public static function manage_sponsors() {
@@ -368,10 +368,10 @@ class OurSponsors {
 			$sponsors[$k]['image_url'] = wp_get_attachment_url($s['image_id']);
 		}
 
-		echo (json_encode([
+		echo (json_encode(array(
 			'sponsors' => $sponsors,
 			'levels' => $wpdb->get_results("SELECT * FROM $sponsor_levels_table_name", ARRAY_A)
-		]));
+		)));
 	}
 
 	// Same handler function...
@@ -392,48 +392,48 @@ class OurSponsors {
 			case 'update_sponsor': {
 				if ($payload['id'] === 'x') {
 					$result = $wpdb->insert( $sponsors_table_name,
-						[
+						array(
 							'years' => stripslashes($payload['years']),
 							'name' => stripslashes($payload['name']),
 							'text' => stripslashes($payload['text']),
 							'url' => stripslashes($payload['url']),
 							'image_id' => intval($payload['image_id']),
 							'sponsor_level' => intval($payload['sponsor_level'])
-						],
-						[
+						),
+						array(
 							'years' => '%s',
 							'name' => '%s',
 							'text' => '%s',
 							'url' => '%s',
 							'image_id' => '%d',
 							'sponsor_level' => '%d'
-						]
+						)
 					);
 				} else {
 					$result = $wpdb->update(
 						$sponsors_table_name,
-						[
+						array(
 							'name' => stripslashes($payload['name']),
 							'text' => stripslashes($payload['text']),
 							'url' => stripslashes($payload['url']),
 							'image_id' => intval($payload['image_id']),
 							'sponsor_level' => intval($payload['sponsor_level']),
 							'years' => stripslashes($payload['years'])
-						],
-						[
+						),
+						array(
 							'id' => intval($payload['id'])
-						],
-						[
+						),
+						array(
 							'%s', //name
 							'%s', //text
 							'%s', //url
 							'%d', //image
 							'%d', //sponsor level
 							'%s' //years
-						],
-						[
+						),
+						array(
 							'%d'
-						]
+						)
 					);
 				}
 				if ($result === false) {
@@ -449,36 +449,36 @@ class OurSponsors {
 			case 'update_sponsor_level': {
 				if ($payload['id'] === 'x') {
 					$wpdb->insert( $sponsor_levels_table_name,
-						[
+						array(
 							'name' => stripslashes($payload['name']),
 							'text' => stripslashes($payload['text']),
 							'size' => stripslashes($payload['size']),
-						],
-						[
+						),
+						array(
 							'name' => '%s',
 							'text' => '%s',
 							'size' => '%d'
-						]
+						)
 					);
 				} else {
 					$result = $wpdb->update(
 						$sponsor_levels_table_name,
-						[
+						array(
 							'name' => stripslashes($payload['name']),
 							'text' => stripslashes($payload['text']),
 							'size' => intval($payload['size']),
-						],
-						[
+						),
+						array(
 							'id' => intval($payload['id'])
-						],
-						[
+						),
+						array(
 							'%s', //name
 							'%s', //text
 							'%d', //size !!
-						],
-						[
+						),
+						array(
 							'%d'
-						]
+						)
 					);
 				}
 				if ($result === false) {
@@ -493,12 +493,12 @@ class OurSponsors {
 			}
 			case 'delete_sponsor' :{
 				$result = $wpdb->delete($sponsors_table_name,
-					[
+					array(
 						'id' => intval($payload['id'])
-					],
-					[
+					),
+					array(
 						'%d'
-					]
+					)
 				);
 				if ($result === false) {
 					// err
@@ -512,12 +512,12 @@ class OurSponsors {
 			}
 			case 'delete_level' :{
 				$result = $wpdb->delete($sponsor_levels_table_name,
-					[
+					array(
 						'id' => intval($payload['id'])
-					],
-					[
+					),
+					array(
 						'%d'
-					]
+					)
 				);
 				if ($result === false) {
 					// err
